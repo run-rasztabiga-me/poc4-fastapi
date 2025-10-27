@@ -1,0 +1,201 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # DATABASES
+  # ============================================
+
+  # Database for Notes Service
+  notes_db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: notes_user
+      POSTGRES_PASSWORD: notes_password
+      POSTGRES_DB: notes_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - notes_db_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notes_user -d notes_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Database for Users Service
+  users_db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: users_user
+      POSTGRES_PASSWORD: users_password
+      POSTGRES_DB: users_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - users_db_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U users_user -d users_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Database for Analytics Service
+  analytics_db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: analytics_user
+      POSTGRES_PASSWORD: analytics_password
+      POSTGRES_DB: analytics_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - analytics_db_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U analytics_user -d analytics_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # MESSAGE BROKER
+  # ============================================
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbitmq
+      RABBITMQ_DEFAULT_PASS: rabbitmq
+    ports:
+      - "5672:5672"    # AMQP port
+      - "15672:15672"  # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # MICROSERVICES
+  # ============================================
+
+  # Users Service
+  users_service:
+    build:
+      context: ./backend/users_service
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8002:8000"
+    environment:
+      DATABASE_URL: postgresql://users_user:users_password@users_db:5432/users_db
+      RABBITMQ_URL: amqp://rabbitmq:rabbitmq@rabbitmq:5672/
+      JWT_SECRET: your-secret-key-change-in-production
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRATION_MINUTES: 30
+    depends_on:
+      users_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - app-network
+    volumes:
+      - ./backend/users_service/app:/app/app
+      - ./backend/shared:/app/shared
+
+  # Notes Service
+  notes_service:
+    build:
+      context: ./backend/notes_service
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: postgresql://notes_user:notes_password@notes_db:5432/notes_db
+      RABBITMQ_URL: amqp://rabbitmq:rabbitmq@rabbitmq:5672/
+      USERS_SERVICE_URL: http://users_service:8000
+      JWT_SECRET: your-secret-key-change-in-production
+      JWT_ALGORITHM: HS256
+    depends_on:
+      notes_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      users_service:
+        condition: service_started
+    networks:
+      - app-network
+    volumes:
+      - ./backend/notes_service/app:/app/app
+      - ./backend/shared:/app/shared
+
+  # Analytics Service
+  analytics_service:
+    build:
+      context: ./backend/analytics_service
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8003:8000"
+    environment:
+      DATABASE_URL: postgresql://analytics_user:analytics_password@analytics_db:5432/analytics_db
+      RABBITMQ_URL: amqp://rabbitmq:rabbitmq@rabbitmq:5672/
+      JWT_SECRET: your-secret-key-change-in-production
+      JWT_ALGORITHM: HS256
+    depends_on:
+      analytics_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - app-network
+    volumes:
+      - ./backend/analytics_service/app:/app/app
+      - ./backend/shared:/app/shared
+
+  # ============================================
+  # FRONTEND
+  # ============================================
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_USERS_API_URL: http://localhost:8002
+        VITE_NOTES_API_URL: http://localhost:8001
+        VITE_ANALYTICS_API_URL: http://localhost:8003
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - users_service
+      - notes_service
+      - analytics_service
+    networks:
+      - app-network
+
+volumes:
+  notes_db_data:
+  users_db_data:
+  analytics_db_data:
+  rabbitmq_data:
+
+networks:
+  app-network:
+    driver: bridge
