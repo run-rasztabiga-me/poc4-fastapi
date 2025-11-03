@@ -7,7 +7,7 @@ sys.path.append('/app')
 from . import models, database
 from .routers import analytics
 from .event_processor import EventProcessor
-from shared.rabbitmq_client import setup_rabbitmq_infrastructure
+from .shared.rabbitmq_client import setup_rabbitmq_infrastructure
 
 event_processor = EventProcessor()
 

@@ -6,7 +6,7 @@ sys.path.append('/app')
 
 from . import models, database
 from .routers import notes
-from shared.rabbitmq_client import setup_rabbitmq_infrastructure
+from .shared.rabbitmq_client import setup_rabbitmq_infrastructure
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

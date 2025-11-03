@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from .. import models, schemas, database
 import sys
 sys.path.append('/app')
-from shared.jwt_utils import get_current_user_id
+from ..shared.jwt_utils import get_current_user_id
 
 router = APIRouter()
 

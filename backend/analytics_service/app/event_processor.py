@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from . import models, database
 import sys
 sys.path.append('/app')
-from shared.rabbitmq_client import RabbitMQClient, USERS_EXCHANGE, NOTES_EXCHANGE, ANALYTICS_USERS_QUEUE, ANALYTICS_NOTES_QUEUE
+from .shared.rabbitmq_client import RabbitMQClient, USERS_EXCHANGE, NOTES_EXCHANGE, ANALYTICS_USERS_QUEUE, ANALYTICS_NOTES_QUEUE
 import threading
 import logging
 

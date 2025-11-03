@@ -5,9 +5,9 @@ from datetime import datetime
 from .. import models, schemas, database
 import sys
 sys.path.append('/app')
-from shared.jwt_utils import get_current_user_id
-from shared.event_schemas import NoteCreatedEvent, NoteUpdatedEvent, NoteDeletedEvent
-from shared.rabbitmq_client import RabbitMQClient, NOTES_EXCHANGE
+from ..shared.jwt_utils import get_current_user_id
+from ..shared.event_schemas import NoteCreatedEvent, NoteUpdatedEvent, NoteDeletedEvent
+from ..shared.rabbitmq_client import RabbitMQClient, NOTES_EXCHANGE
 
 router = APIRouter()
 
